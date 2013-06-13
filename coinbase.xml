@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension version="3.1" type="plugin" group="crowdfundingpayment" method="upgrade">
+    <name>PLG_CROWDFUNDINGPAYMENT_COINBASE</name>
+    <author>Todor Iliev</author>
+    <copyright>Copyright (C) 2010 Todor Iliev ( ITPrism.com ). All rights reserved.</copyright>
+    <license>http://www.gnu.org/copyleft/gpl.html GNU/GPL</license>
+    <authorEmail>todor@itprism.com</authorEmail>
+    <authorUrl>http://itprism.com</authorUrl>
+    <version>1.0</version>
+    <creationDate>16 June, 2013</creationDate>
+    <description>PLG_CROWDFUNDINGPAYMENT_COINBASE_DESC</description>
+    
+    <languages  folder="language">
+        <language tag="en-GB">en-GB/en-GB.plg_crowdfundingpayment_coinbase.ini</language>
+        <language tag="en-GB">en-GB/en-GB.plg_crowdfundingpayment_coinbase.sys.ini</language>
+    </languages> 
+    
+    <files>
+        <filename plugin="coinbase">coinbase.php</filename>
+        <filename>index.html</filename>
+    </files>
+    
+    <help url="PLG_CROWDFUNDINGPAYMENT_COINBASE_HELP_URL"/>
+    
+    <config>
+		<fields name="params">
+			<fieldset name="basic">
+			
+		        <field name="coinbase_api_key" type="text" class="span4" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY_DESC" />
+		        <field name="coinbase_notify_url" type="text" default="index.php?option=com_crowdfunding&amp;task=notifier.notify&amp;format=raw" class="span4" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFY_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFY_URL_DESC" />
+		        <field name="coinbase_button_type" type="list" default="buy_now" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_DESC">
+	                <option value="buy_now">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_BUY_NOW</option>
+	                <option value="donation">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_DONATION</option>
+	            </field>
+            
+                <field name="coinbase_button_style" type="list" default="buy_now_large" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_DESC">
+                    <option value="buy_now_large">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_NOW_LARGE</option>
+                    <option value="buy_now_small">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_NOW_SMALL</option>
+                    <option value="donation_large">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_DONATION_LARGE</option>
+                    <option value="donation_small">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_DONATION_SMALL</option>
+                    <option value="custom_large">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_CUSTOM_LARGE</option>
+                    <option value="custom_small">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_CUSTOM_SMALL</option>
+                </field>
+                
+                <field name="coinbase_button_text" type="text" default="Pay With Bitcoin" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TEXT" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TEXT_DESC" />
+			</fieldset>
+	            
+        </fields>
+	</config>
+</extension>
