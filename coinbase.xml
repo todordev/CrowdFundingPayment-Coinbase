@@ -41,8 +41,14 @@
                     <option value="custom_large">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_CUSTOM_LARGE</option>
                     <option value="custom_small">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_CUSTOM_SMALL</option>
                 </field>
-                
                 <field name="coinbase_button_text" type="text" default="Pay With Bitcoin" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TEXT" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TEXT_DESC" />
+                <field name="spacer" type="spacer" hr="true" />
+                <field name="coinbase_test_mode" type="radio" default="1" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_MODE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_MODE_DESC" class="btn-group">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="coinbase_test_custom_string" type="text" class="span4" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING_DESC" />
+                <field name="coinbase_test_amount" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_AMOUNT" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_AMOUNT_DESC" />
 			</fieldset>
 	            
         </fields>

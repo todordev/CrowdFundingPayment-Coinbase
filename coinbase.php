@@ -99,6 +99,12 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         
         $html .= $response->embedHtml;
         
+        if($this->params->get('coinbase_test_mode', 1)) {
+            $html .= '<p class="sticky">'.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_WORKS_TEST_MODE").'</p>';
+            $html .= '<label>'.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING").'</label>';
+            $html .= '<input type="test" name="test_custom_string" value="'.$custom.'" class="span12"/>';
+        }
+        
         return $html;
     }
     
@@ -135,6 +141,13 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         $post     = json_decode($jsonData, true);
         if(!empty($post)) {
             $post = JArrayHelper::getValue($post, "order");
+        }
+        
+        // Set the data that will be used for testing Instant Payment Notifications
+        // This works when the extension is in test mode.
+        if($this->params->get("coinbase_test_mode", 1)) {
+            $post["custom"]             = $this->params->get("coinbase_test_custom_string");
+            $post["total_btc"]["cents"] = $this->params->get("coinbase_test_amount", 1);
         }
         
         // Verify gateway. Is it Coinbase? 
@@ -218,6 +231,9 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         $cbTransaction = JArrayHelper::getValue($data, "transaction");
         $cbTotalBtc    = JArrayHelper::getValue($data, "total_btc");
         
+        $created       = JArrayHelper::getValue($data, "created_at");
+        $date = new JDate($created);
+        
         // Prepare transaction data
         $transaction = array(
             "investor_id"		     => JArrayHelper::getValue($custom, "user_id", 0, "int"),
@@ -227,7 +243,8 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         	"txn_id"                 => JArrayHelper::getValue($cbTransaction, "id"),
         	"txn_amount"		     => JArrayHelper::getValue($cbTotalBtc, "cents"),
             "txn_currency"           => JArrayHelper::getValue($cbTotalBtc, "currency_iso"),
-            "txn_status"             => strtolower( JArrayHelper::getValue($data, "status") )
+            "txn_status"             => strtolower( JArrayHelper::getValue($data, "status") ),
+            "txn_date"               => $date->toSql()
         ); 
         
         // Check User Id, Project ID and Transaction ID
