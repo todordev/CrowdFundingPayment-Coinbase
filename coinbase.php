@@ -53,17 +53,24 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         $html .= '<h4>'.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_TITLE").'</h4>';
         $html .= '<p>'.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_INFO").'</p>';
         
+        
+        // Prepare custom data
         $userId = JFactory::getUser()->id;
+        $intentionKeys = array(
+            "user_id"    => $userId,
+            "project_id" => $item->id
+        );
+        
+        jimport("crowdfunding.intention");
+        $intention = new CrowdFundingIntention($intentionKeys);
         
         // Custom data
         $custom = array(
-            "project_id" =>  $item->id,
-            "reward_id"  =>  $item->rewardId,
-            "user_id"    =>  $userId,
-            "gateway"	 =>  "Coinbase"
+            "intention_id" =>  $intention->id,
+            "gateway"	   =>  "Coinbase"
         );
         
-        $custom = base64_encode( json_encode($custom) );
+        $custom = base64_encode(json_encode($custom));
         
         $title  = htmlentities($item->title, ENT_QUOTES, "UTF-8");
         
@@ -81,7 +88,7 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
             if( false !== strcmp("custom", $customStyle) ) {
                 if($this->params->get("coinbase_button_text")) {
                     $options["style"] = $this->params->get("coinbase_button_style");
-                    $options["text"]  = $this->params->get("coinbase_button_text");
+                    $options["text"]  = addslashes(htmlspecialchars($this->params->get("coinbase_button_text"), ENT_COMPAT, 'UTF-8'));
                 }
             } else {
                 $options["style"] = $this->params->get("coinbase_button_style");
@@ -90,7 +97,10 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         
         // Send request for button
         jimport("itprism.bitcoin.coinbase.Coinbase");
-        $coinbase = new Coinbase($this->params->get("coinbase_api_key"));
+        
+        $apiKey = JString::trim($this->params->get("coinbase_api_key"));
+        $coinbase = new Coinbase($apiKey);
+        
         if(!empty($options)) {
             $response = $coinbase->createButton($title, $item->amount, $item->currencyCode, $custom, $options);
         } else { // Get default
@@ -110,9 +120,10 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
     
     /**
      * 
-     * Enter description here ...
+     * This method processes transaction.
+     * 
      * @param array 	$post	This is _POST variable
-     * @param JRegistry $params	The parameters of the component
+     * @param JRegistry $params	Component parameters
      */
     public function onPaymenNotify($context, $post, $params) {
         
@@ -146,12 +157,15 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         // Set the data that will be used for testing Instant Payment Notifications
         // This works when the extension is in test mode.
         if($this->params->get("coinbase_test_mode", 1)) {
-            $post["custom"]             = $this->params->get("coinbase_test_custom_string");
-            $post["total_btc"]["cents"] = $this->params->get("coinbase_test_amount", 1);
+            $post["custom"]             = JString::trim($this->params->get("coinbase_test_custom_string"));
+            $post["total_btc"]["cents"] = JString::trim($this->params->get("coinbase_test_amount", 1));
         }
         
+        $custom         = JArrayHelper::getValue($post, "custom");
+        $custom         = json_decode( base64_decode($custom), true );
+        
         // Verify gateway. Is it Coinbase? 
-        if(!$this->isCoinbaseGateway($post)) {
+        if(!$this->isCoinbaseGateway($custom)) {
             return null;
         }
         
@@ -169,8 +183,14 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         $currencyId      = $params->get("project_currency");
         $currency        = CrowdFundingCurrency::getInstance($currencyId);
         
+        // Get intention data
+        $intentionId     = JArrayHelper::getValue($custom, "intention_id", 0, "int");
+        
+        jimport("crowdfunding.intention");
+        $intention = new CrowdFundingIntention($intentionId);
+        
         // Validate transaction data
-        $validData = $this->validateData($post, $currency->abbr);
+        $validData = $this->validateData($post, $currency->abbr, $intention);
         if(is_null($validData)) {
             return $result;
         }
@@ -190,15 +210,19 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         // Set the receiver of funds
         $validData["receiver_id"] = $project->user_id;
         
+        // Save transaction data.
+        // If it is not completed, return empty results.
+        // If it is complete, continue with process transaction data
+        if(!$this->storeTransaction($validData, $project)) {
+            return $result;
+        }
+        
         // Validate and Update distributed value of the reward
         $rewardId  = JArrayHelper::getValue($validData, "reward_id");
         $reward    = null;
         if(!empty($rewardId)) {
             $reward = $this->updateReward($validData);
         }
-    
-        // Save transaction data
-        $this->save($validData, $project);
         
         //  Prepare the data that will be returned
         
@@ -214,20 +238,88 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
             $result["reward"]  = JArrayHelper::toObject($properties);
         }
         
+        // Remove intention
+        $intention->delete();
+        unset($intention);
+        
         return $result;
                 
+    }
+    
+    /**
+     * This metod is executed after complete payment.
+     * It is used to be sent mails to user and administrator
+     *
+     * @param object     $transaction   Transaction data
+     * @param JRegistry  $params        Component parameters
+     * @param object     $project       Project data
+     * @param object     $reward        Reward data
+     */
+    public function onAfterPayment($context, &$transaction, $params, $project, $reward) {
+    
+        $app = JFactory::getApplication();
+        /** @var $app JSite **/
+    
+        if($app->isAdmin()) {
+            return;
+        }
+    
+        $doc     = JFactory::getDocument();
+        /**  @var $doc JDocumentHtml **/
+    
+        // Check document type
+        $docType = $doc->getType();
+        if(strcmp("raw", $docType) != 0){
+            return;
+        }
+         
+        if(strcmp("com_crowdfunding.notify", $context) != 0){
+            return;
+        }
+    
+        // Send email to the administrator
+        if($this->params->get("coinbase_send_admin_mail", 0)) {
+    
+            $subject = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_NEW_INVESTMENT_ADMIN_SUBJECT");
+            $body    = JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_NEW_INVESTMENT_ADMIN_BODY", $project->title);
+            $return  = JFactory::getMailer()->sendMail($app->getCfg("mailfrom"), $app->getCfg("fromname"), $app->getCfg("mailfrom"), $subject, $body);
+    
+            // Check for an error.
+            if ($return !== true) {
+                $error = JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_MAIL_SENDING_ADMIN");
+                JLog::add($error);
+            }
+        }
+    
+        // Send email to the user
+        if($this->params->get("coinbase_send_user_mail", 0)) {
+    
+            $amount   = $transaction->txn_amount.$transaction->txn_currency;
+    
+            $user     = JUser::getInstance($project->user_id);
+    
+            // Send email to the administrator
+            $subject = JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_NEW_INVESTMENT_USER_SUBJECT", $project->title);
+            $body    = JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_NEW_INVESTMENT_USER_BODY", $amount, $project->title );
+            $return  = JFactory::getMailer()->sendMail($app->getCfg("mailfrom"), $app->getCfg("fromname"), $user->email, $subject, $body);
+    
+            // Check for an error.
+            if ($return !== true) {
+                $error = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_MAIL_SENDING_USER");
+                JLog::add($error);
+            }
+    
+        }
+    
     }
     
 	/**
      * Validate transaction
      * @param array $data
      */
-    protected function validateData($data, $currency) {
+    protected function validateData($data, $currency, $intention) {
         
         // Prepare transaction data
-        $custom    = JArrayHelper::getValue($data, "custom");
-        $custom    = json_decode( base64_decode($custom), true );
-        
         $cbTransaction = JArrayHelper::getValue($data, "transaction");
         $cbTotalBtc    = JArrayHelper::getValue($data, "total_btc");
         
@@ -236,9 +328,9 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         
         // Prepare transaction data
         $transaction = array(
-            "investor_id"		     => JArrayHelper::getValue($custom, "user_id", 0, "int"),
-            "project_id"		     => JArrayHelper::getValue($custom, "project_id", 0, "int"),
-            "reward_id"			     => JArrayHelper::getValue($custom, "reward_id", 0, "int"),
+            "investor_id"		     => $intention->user_id,
+            "project_id"		     => $intention->project_id,
+            "reward_id"			     => $intention->reward_id,
         	"service_provider"       => "Coinbase",
         	"txn_id"                 => JArrayHelper::getValue($cbTransaction, "id"),
         	"txn_amount"		     => JArrayHelper::getValue($cbTotalBtc, "cents"),
@@ -268,10 +360,8 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
     
     protected function updateReward(&$data) {
         
-        $db     = JFactory::getDbo();
-        
         jimport("crowdfunding.reward");
-        $reward = new CrowdFundingReward($db);
+        $reward = new CrowdFundingReward();
         $keys   = array(
         	"id"         => $data["reward_id"], 
         	"project_id" => $data["project_id"]
@@ -320,30 +410,56 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
     }
     
     /**
-     * 
      * Save transaction
-     * @param array $data
+     *
+     * @param array $data           The data about transaction from the payment gateway. 
+     * @param CrowdFundingProject   $project  
+     * 
+     * @return boolean
      */
-    public function save($data, $project) {
-        
-        // Save data about donation
-        $db     = JFactory::getDbo();
+    public function storeTransaction($data, $project) {
         
         jimport("crowdfunding.transaction");
-        $transaction = new CrowdFundingTransaction($db);
+        
+        $keys = array(
+            "txn_id" => JArrayHelper::getValue($data, "txn_id")
+        );
+        
+        $transaction = new CrowdFundingTransaction($keys);
+        
+        // Check for existed transaction
+        if(!empty($transaction->id)) {
+        
+            // If the current status if completed,
+            // stop the process.
+            if(strcmp("completed", $transaction->txn_status) == 0) {
+                return false;
+            }
+        
+        }
+        
+        // Store the transaction data
         $transaction->bind($data);
         $transaction->store();
+        
+        // If it is not completed (it might be pending or other status),
+        // stop the process. Only completed transaction will continue 
+        // and will process the project, rewards,...
+        $txnStatus = JArrayHelper::getValue($data, "txn_status");
+        if(strcmp("completed", $txnStatus) != 0) {
+            return false;
+        }
         
         // Update project funded amount
         $amount = JArrayHelper::getValue($data, "txn_amount");
         $project->addFunds($amount);
         $project->store();
+        
+        return true;
     }
     
-    private function isCoinbaseGateway($post) {
+    private function isCoinbaseGateway($custom) {
         
-        $custom         = JArrayHelper::getValue($post, "custom");
-        $custom         = json_decode( base64_decode($custom), true );
         $paymentGateway = JArrayHelper::getValue($custom, "gateway");
 
         if(strcmp("Coinbase", $paymentGateway) != 0 ) {
