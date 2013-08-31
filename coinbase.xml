@@ -6,8 +6,8 @@
     <license>http://www.gnu.org/copyleft/gpl.html GNU/GPL</license>
     <authorEmail>todor@itprism.com</authorEmail>
     <authorUrl>http://itprism.com</authorUrl>
-    <version>1.1</version>
-    <creationDate>21 July, 2013</creationDate>
+    <version>1.2</version>
+    <creationDate>31 August, 2013</creationDate>
     <description>PLG_CROWDFUNDINGPAYMENT_COINBASE_DESC</description>
     
     <languages  folder="language">

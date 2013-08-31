@@ -122,10 +122,10 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
      * 
      * This method processes transaction.
      * 
-     * @param array 	$post	This is _POST variable
-     * @param JRegistry $params	Component parameters
+     * @param string 	$context	This string gives information about that where it has been executed the trigger.
+     * @param JRegistry $params	    The parameters of the component
      */
-    public function onPaymenNotify($context, $post, $params) {
+    public function onPaymenNotify($context, $params) {
         
         $app = JFactory::getApplication();
         /** @var $app JSite **/
@@ -173,9 +173,10 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         $this->loadLanguage();
             
         $result = array(
-            "project"     => null,
-            "reward"      => null,
-            "transaction" => null
+        	"project"          => null, 
+        	"reward"           => null, 
+        	"transaction"      => null,
+            "payment_service"  => "Coinbase"
         );
         
         // Get extension parameters
@@ -273,7 +274,7 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
             return;
         }
          
-        if(strcmp("com_crowdfunding.notify", $context) != 0){
+        if(strcmp("com_crowdfunding.notify.coinbase", $context) != 0){
             return;
         }
     
@@ -341,16 +342,16 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         
         // Check User Id, Project ID and Transaction ID
         if(!$transaction["investor_id"] OR !$transaction["project_id"] OR !$transaction["txn_id"]) {
-            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_ERROR_INVALID_TRANSACTION_DATA");
-            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_TRANSACTION_DATA", var_export($transaction, true));
+            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_INVALID_TRANSACTION_DATA");
+            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_TRANSACTION_DATA", var_export($transaction, true));
             JLog::add($error);
             return null;
         }
         
         // Check currency
         if(strcmp($transaction["txn_currency"], $currency) != 0) {
-            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_ERROR_INVALID_TRANSACTION_CURRENCY");
-            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_TRANSACTION_DATA", var_export($transaction, true));
+            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_INVALID_TRANSACTION_CURRENCY");
+            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_TRANSACTION_DATA", var_export($transaction, true));
             JLog::add($error);
             return null;
         }
@@ -370,8 +371,8 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         
         // Check for valid reward
         if(!$reward->id) {
-            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_ERROR_INVALID_REWARD");
-            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_TRANSACTION_DATA", var_export($data, true));
+            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_INVALID_REWARD");
+            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_TRANSACTION_DATA", var_export($data, true));
 			JLog::add($error);
 			
 			$data["reward_id"] = 0;
@@ -382,8 +383,8 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         $txnAmount = JArrayHelper::getValue($data, "txn_amount");
         
         if($txnAmount < $reward->amount) {
-            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_ERROR_INVALID_REWARD_AMOUNT");
-            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_TRANSACTION_DATA", var_export($data, true));
+            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_INVALID_REWARD_AMOUNT");
+            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_TRANSACTION_DATA", var_export($data, true));
 			JLog::add($error);
 			
 			$data["reward_id"] = 0;
@@ -391,8 +392,8 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         }
         
         if($reward->isLimited() AND !$reward->getAvailable()) {
-            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_ERROR_REWARD_NOT_AVAILABLE");
-            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_TRANSACTION_DATA", var_export($data, true));
+            $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_REWARD_NOT_AVAILABLE");
+            $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_TRANSACTION_DATA", var_export($data, true));
 			JLog::add($error);
 			
 			$data["reward_id"] = 0;
