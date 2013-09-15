@@ -3,12 +3,8 @@
  * @package		 CrowdFunding
  * @subpackage	 Plugins
  * @author       Todor Iliev
- * @copyright    Copyright (C) 2010 Todor Iliev <todor@itprism.com>. All rights reserved.
+ * @copyright    Copyright (C) 2013 Todor Iliev <todor@itprism.com>. All rights reserved.
  * @license      http://www.gnu.org/copyleft/gpl.html GNU/GPL
- * CrowdFunding is free software. This version may have been modified pursuant
- * to the GNU General Public License, and as distributed it includes or
- * is derivative of works licensed under the GNU General Public License or
- * other free or open source software licenses.
  */
 
 // no direct access
@@ -49,24 +45,22 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         // Load language
         $this->loadLanguage();
         
+        // This is a URI path to the plugin folder
+        $pluginURI = "plugins/crowdfundingpayment/coinbase";
+        
         $html  =  "";
-        $html .= '<h4>'.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_TITLE").'</h4>';
+        $html .= '<h4><img src="'.$pluginURI.'/images/coinbase_icon.png" width="38" height="32" /> '.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_TITLE").'</h4>';
         $html .= '<p>'.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_INFO").'</p>';
         
-        
-        // Prepare custom data
-        $userId = JFactory::getUser()->id;
-        $intentionKeys = array(
-            "user_id"    => $userId,
-            "project_id" => $item->id
-        );
-        
-        jimport("crowdfunding.intention");
-        $intention = new CrowdFundingIntention($intentionKeys);
+        // Get intention
+        $userId  = JFactory::getUser()->id;
+        $aUserId = $app->getUserState("auser_id");
+
+        $intention = CrowdFundingHelper::getIntention($userId, $aUserId, $item->id);
         
         // Custom data
         $custom = array(
-            "intention_id" =>  $intention->id,
+            "intention_id" =>  $intention->getId(),
             "gateway"	   =>  "Coinbase"
         );
         
@@ -191,7 +185,7 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         $intention = new CrowdFundingIntention($intentionId);
         
         // Validate transaction data
-        $validData = $this->validateData($post, $currency->abbr, $intention);
+        $validData = $this->validateData($post, $currency->getAbbr(), $intention);
         if(is_null($validData)) {
             return $result;
         }
@@ -315,8 +309,11 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
     }
     
 	/**
-     * Validate transaction
-     * @param array $data
+     * Validate transaction data,
+     * 
+     * @param array                  $data
+     * @param string                 $currency
+     * @param CrowdFundingIntention  $intention
      */
     protected function validateData($data, $currency, $intention) {
         
@@ -325,23 +322,29 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         $cbTotalBtc    = JArrayHelper::getValue($data, "total_btc");
         
         $created       = JArrayHelper::getValue($data, "created_at");
-        $date = new JDate($created);
+        $date          = new JDate($created);
+        
+        // Get transaction status
+        $status = strtolower( JArrayHelper::getValue($data, "status") );
+        if(strcmp("completed", $status) != 0) {
+            $status = "canceled";
+        }
         
         // Prepare transaction data
         $transaction = array(
-            "investor_id"		     => $intention->user_id,
-            "project_id"		     => $intention->project_id,
-            "reward_id"			     => $intention->reward_id,
+            "investor_id"		     => (int)$intention->getUserId(),
+            "project_id"		     => (int)$intention->getProjectId(),
+            "reward_id"			     => ($intention->isAnonymous()) ? 0 : (int)$intention->getRewardId(), // If the transaction has been made by anonymous user, reset reward. Anonymous users cannot select rewards.
         	"service_provider"       => "Coinbase",
         	"txn_id"                 => JArrayHelper::getValue($cbTransaction, "id"),
         	"txn_amount"		     => JArrayHelper::getValue($cbTotalBtc, "cents"),
             "txn_currency"           => JArrayHelper::getValue($cbTotalBtc, "currency_iso"),
-            "txn_status"             => strtolower( JArrayHelper::getValue($data, "status") ),
+            "txn_status"             => $status,
             "txn_date"               => $date->toSql()
         ); 
         
         // Check User Id, Project ID and Transaction ID
-        if(!$transaction["investor_id"] OR !$transaction["project_id"] OR !$transaction["txn_id"]) {
+        if(!$transaction["project_id"] OR !$transaction["txn_id"]) {
             $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_INVALID_TRANSACTION_DATA");
             $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_TRANSACTION_DATA", var_export($transaction, true));
             JLog::add($error);
@@ -361,16 +364,16 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
     
     protected function updateReward(&$data) {
         
-        jimport("crowdfunding.reward");
-        $reward = new CrowdFundingReward();
         $keys   = array(
-        	"id"         => $data["reward_id"], 
-        	"project_id" => $data["project_id"]
+            "id"         => $data["reward_id"],
+            "project_id" => $data["project_id"]
         );
-        $reward->load($keys);
+        
+        jimport("crowdfunding.reward");
+        $reward = new CrowdFundingReward($keys);
         
         // Check for valid reward
-        if(!$reward->id) {
+        if(!$reward->getId()) {
             $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_INVALID_REWARD");
             $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_TRANSACTION_DATA", var_export($data, true));
 			JLog::add($error);
@@ -381,8 +384,7 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         
         // Check for valida amount between reward value and payed by user
         $txnAmount = JArrayHelper::getValue($data, "txn_amount");
-        
-        if($txnAmount < $reward->amount) {
+        if($txnAmount < $reward->getAmount()) {
             $error  = JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_INVALID_REWARD_AMOUNT");
             $error .= "\n". JText::sprintf("PLG_CROWDFUNDINGPAYMENT_COINBASE_TRANSACTION_DATA", var_export($data, true));
 			JLog::add($error);
