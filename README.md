@@ -1,12 +1,15 @@
 CrowdFunding Payment - Coinbase
 ==========================
-( Version 1.3 )
+( Version 1.4 )
 - - -
 
 This is a Bitcoin payment plugin for CrowdFunding, powered by Coinbase. 
 
 Changelog
 ---------
+
+###v1.4
+* Changed the size of some fields.
 
 ###v1.3
 * Improved
