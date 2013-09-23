@@ -52,6 +52,12 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         $html .= '<h4><img src="'.$pluginURI.'/images/coinbase_icon.png" width="38" height="32" /> '.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_TITLE").'</h4>';
         $html .= '<p>'.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_INFO").'</p>';
         
+        // Check for valid API key
+        $apiKey = JString::trim($this->params->get("coinbase_api_key"));
+        if(!$apiKey) {
+            return '<div class="alert">'.JText::_("PLG_CROWDFUNDINGPAYMENT_COINBASE_ERROR_PLUGIN_NOT_CONFIGURED").'</div>';
+        }
+        
         // Get intention
         $userId  = JFactory::getUser()->id;
         $aUserId = $app->getUserState("auser_id");
@@ -91,8 +97,6 @@ class plgCrowdFundingPaymentCoinbase extends JPlugin {
         
         // Send request for button
         jimport("itprism.bitcoin.coinbase.Coinbase");
-        
-        $apiKey = JString::trim($this->params->get("coinbase_api_key"));
         $coinbase = new Coinbase($apiKey);
         
         if(!empty($options)) {
