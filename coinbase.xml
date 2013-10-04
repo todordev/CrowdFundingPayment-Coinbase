@@ -6,9 +6,15 @@
     <license>http://www.gnu.org/copyleft/gpl.html GNU/GPL</license>
     <authorEmail>todor@itprism.com</authorEmail>
     <authorUrl>http://itprism.com</authorUrl>
-    <version>1.4</version>
-    <creationDate>22 September, 2013</creationDate>
-    <description>PLG_CROWDFUNDINGPAYMENT_COINBASE_DESC</description>
+    <version>1.5</version>
+    <creationDate>05 October, 2013</creationDate>
+    <description>
+<![CDATA[
+<p>CrowdFunding Payment - Coinbase is a plugin that enables <a href='https://coinbase.com/?r=51b8bcf9b08a3247a7000008' target='_blank'>Coinbase</a> payment.</p>
+<p><a href='http://itprism.com/' target='_blank'>Subscribe for the newsletter</a> to receive information about updates and new ITPrism extensions.</p>
+<p>Please, <a href='http://extensions.joomla.org/extensions/e-commerce/donations/23876' target='_blank'>vote for the extension</a> on Joomla! Extensions Directory</p>
+]]>
+</description>
     
     <languages  folder="language">
         <language tag="en-GB">en-GB/en-GB.plg_crowdfundingpayment_coinbase.ini</language>
@@ -61,7 +67,6 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                
                 
 			</fieldset>
 	            
