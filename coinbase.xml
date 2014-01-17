@@ -2,12 +2,12 @@
 <extension version="3.2" type="plugin" group="crowdfundingpayment" method="upgrade">
     <name>PLG_CROWDFUNDINGPAYMENT_COINBASE</name>
     <author>Todor Iliev</author>
-    <copyright>Copyright (C) 2013 Todor Iliev ( ITPrism.com ). All rights reserved.</copyright>
+    <copyright>Copyright (C) 2014 Todor Iliev ( ITPrism.com ). All rights reserved.</copyright>
     <license>http://www.gnu.org/copyleft/gpl.html GNU/GPL</license>
     <authorEmail>todor@itprism.com</authorEmail>
     <authorUrl>http://itprism.com</authorUrl>
-    <version>1.8</version>
-    <creationDate>08 December, 2013</creationDate>
+    <version>1.9</version>
+    <creationDate>17 January, 2014</creationDate>
     <description><![CDATA[
     <p>CrowdFunding Payment - Coinbase is a plugin that enables <a href='https://coinbase.com/?r=51b8bcf9b08a3247a7000008' target='_blank'>Coinbase</a> payment.</p>
     <p>Invest in the extension and help for its improvement. You can <a href="http://itprism.com/sponsorship" target="_blank">sponsor the extension via SMS, PayPal or Bitcoin</a>.</p>
@@ -29,8 +29,8 @@
 		<fields name="params">
 			<fieldset name="basic" addfieldpath="/administrator/components/com_crowdfunding/models/fields">
 			
-		        <field name="coinbase_api_key" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY_DESC" size="80" class="span4" />
-		        <field name="coinbase_notify_url" type="text" default="index.php?option=com_crowdfunding&amp;task=notifier.notify&amp;format=raw" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFY_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFY_URL_DESC" size="80" class="span4" />
+		        <field name="coinbase_api_key" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY_DESC" size="80" class="span6" />
+		        <field name="coinbase_notify_url" type="text" default="index.php?option=com_crowdfunding&amp;task=notifier.notify&amp;format=raw&amp;payment_service=coinbase" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFY_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFY_URL_DESC" size="80" class="span6" />
 		        <field name="coinbase_button_type" type="list" default="buy_now" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_DESC">
 	                <option value="buy_now">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_BUY_NOW</option>
 	                <option value="donation">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_DONATION</option>
@@ -51,7 +51,7 @@
                     <option value="0">JNO</option>
                     <option value="1">JYES</option>
                 </field>
-                <field name="coinbase_test_custom_string" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING_DESC" size="80" class="span4" />
+                <field name="coinbase_test_custom_string" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING_DESC" size="80" class="span6" />
                 <field name="coinbase_test_amount" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_AMOUNT" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_AMOUNT_DESC" />
                 
                 <field name="spacer2" type="spacer" hr="true" />
