@@ -58,8 +58,9 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin {
         $html[] = '<p>'.JText::_($this->textPrefix."_INFO").'</p>';
         
         // Check for valid API key
-        $apiKey = JString::trim($this->params->get("coinbase_api_key"));
-        if(!$apiKey) {
+        $apiKey     = JString::trim($this->params->get("coinbase_api_key"));
+        $secretKey  = JString::trim($this->params->get("coinbase_secret_key"));
+        if(!$apiKey OR !$secretKey) {
             $html[] = '<div class="alert">'.JText::_($this->textPrefix."_ERROR_PLUGIN_NOT_CONFIGURED").'</div>';
             
             return implode("\n", $html);
@@ -106,12 +107,27 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin {
             }
         }
         
+        // Return URL
+        $returnUrl = JString::trim($this->params->get("coinbase_return_url"));
+        if(!empty($returnUrl)) {
+            $options["success_url"] = $returnUrl;
+        }
+        
+        // Cancel URL
+        $cancelUrl = JString::trim($this->params->get("coinbase_cancel_url"));
+        if(!empty($cancelUrl)) {
+            $options["cancel_url"] = $cancelUrl;
+        }
+        
+        // Set auto-redirect option.
+        $options["auto_redirect"] = (bool)$this->params->get("coinbase_auto_redirect", 1);
+        
         // DEBUG DATA
         JDEBUG ? $this->log->add(JText::_($this->textPrefix."_DEBUG_CREATE_BUTTON_OPTIONS"), $this->debugType, $options) : null;
         
         // Send request for button
         jimport("itprism.payment.coinbase.Coinbase");
-        $coinbase = new Coinbase($apiKey);
+        $coinbase = Coinbase::withApiKey($apiKey, $secretKey);
         
         // DEBUG DATA
         JDEBUG ? $this->log->add(JText::_($this->textPrefix."_DEBUG_CREATE_BUTTON_OBJECT"), $this->debugType, $coinbase) : null;

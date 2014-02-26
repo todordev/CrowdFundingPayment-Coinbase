@@ -6,8 +6,8 @@
     <license>http://www.gnu.org/copyleft/gpl.html GNU/GPL</license>
     <authorEmail>todor@itprism.com</authorEmail>
     <authorUrl>http://itprism.com</authorUrl>
-    <version>1.9</version>
-    <creationDate>17 January, 2014</creationDate>
+    <version>1.10</version>
+    <creationDate>26 February, 2014</creationDate>
     <description><![CDATA[
     <p>CrowdFunding Payment - Coinbase is a plugin that enables <a href='https://coinbase.com/?r=51b8bcf9b08a3247a7000008' target='_blank'>Coinbase</a> payment.</p>
     <p>Invest in the extension and help for its improvement. You can <a href="http://itprism.com/sponsorship" target="_blank">sponsor the extension via SMS, PayPal or Bitcoin</a>.</p>
@@ -26,15 +26,46 @@
     </files>
     
     <config>
-		<fields name="params">
-			<fieldset name="basic" addfieldpath="/administrator/components/com_crowdfunding/models/fields">
-			
-		        <field name="coinbase_api_key" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY_DESC" size="80" class="span6" />
-		        <field name="coinbase_notify_url" type="text" default="index.php?option=com_crowdfunding&amp;task=notifier.notify&amp;format=raw&amp;payment_service=coinbase" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFY_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFY_URL_DESC" size="80" class="span6" />
-		        <field name="coinbase_button_type" type="list" default="buy_now" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_DESC">
-	                <option value="buy_now">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_BUY_NOW</option>
-	                <option value="donation">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_DONATION</option>
-	            </field>
+		<fields name="params" addfieldpath="/administrator/components/com_crowdfunding/models/fields">
+			<fieldset name="basic">
+		        <field name="coinbase_api_key" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY_DESC" class="span6" />
+		        <field name="coinbase_secret_key" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SECRET_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SECRET_KEY_DESC" class="span6" />
+            </fieldset>
+            
+            <fieldset name="sandbox" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_MODE">
+                <field name="coinbase_test_mode" type="radio" default="1" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_ENABLE_TEST_MODE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_ENABLE_TEST_MODE_DESC" class="btn-group">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                <field name="coinbase_test_custom_string" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING_DESC" class="span6" />
+                <field name="coinbase_test_amount" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_AMOUNT" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_AMOUNT_DESC" />
+            </fieldset>
+            
+            <fieldset name="emails" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFICATION_EMAILS">
+                <field name="admin_mail_id" type="cfemails" default="0" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_ADMIN" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_ADMIN_DESC" class="btn-group" />
+                <field name="creator_mail_id" type="cfemails" default="0" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_CREATOR" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_CREATOR_DESC" class="btn-group" />
+                <field name="user_mail_id" type="cfemails" default="0" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_USER" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_USER_DESC" class="btn-group" />
+                
+                <field name="email_mode" type="list" default="html" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_EMAIL_MODE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_EMAIL_MODE_DESC" >
+                   <option value="plain">PLG_CROWDFUNDINGPAYMENT_COINBASE_PLAIN</option>
+                   <option value="html">PLG_CROWDFUNDINGPAYMENT_COINBASE_HTML</option>
+                </field>
+			</fieldset>
+	            
+            <fieldset name="advanced" >
+                <field name="coinbase_return_url" type="text" size="80" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_RETURN_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_RETURN_URL_DESC" class="span6" />
+                <field name="coinbase_cancel_url" type="text" size="80" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_CANCEL_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_CANCEL_URL_DESC" class="span6" />
+                <field name="coinbase_notify_url" type="text" default="index.php?option=com_crowdfunding&amp;task=notifier.notify&amp;format=raw&amp;payment_service=coinbase" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_CALLBACK_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_CALLBACK_URL_DESC" class="span6" />
+                
+                <field name="coinbase_auto_redirect" type="radio" default="1" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_AUTO_REDIRECT" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_AUTO_REDIRECT_DESC" class="btn-group">
+                    <option value="0">JNO</option>
+                    <option value="1">JYES</option>
+                </field>
+                
+                <field name="coinbase_button_type" type="list" default="buy_now" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_DESC">
+                    <option value="buy_now">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_BUY_NOW</option>
+                    <option value="donation">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TYPE_DONATION</option>
+                </field>
             
                 <field name="coinbase_button_style" type="list" default="buy_now_large" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_DESC">
                     <option value="buy_now_large">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_NOW_LARGE</option>
@@ -45,27 +76,7 @@
                     <option value="custom_small">PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_STYLE_CUSTOM_SMALL</option>
                 </field>
                 <field name="coinbase_button_text" type="text" default="Pay With Bitcoin" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TEXT" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_BUTTON_TEXT_DESC" />
-                
-                <field name="spacer1" type="spacer" hr="true" />
-                <field name="coinbase_test_mode" type="radio" default="1" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_MODE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_MODE_DESC" class="btn-group">
-                    <option value="0">JNO</option>
-                    <option value="1">JYES</option>
-                </field>
-                <field name="coinbase_test_custom_string" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_CUSTOM_STRING_DESC" size="80" class="span6" />
-                <field name="coinbase_test_amount" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_AMOUNT" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_TEST_AMOUNT_DESC" />
-                
-                <field name="spacer2" type="spacer" hr="true" />
-                <field name="admin_mail_id" type="cfemails" default="0" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_ADMIN" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_ADMIN_DESC" class="btn-group" />
-                <field name="creator_mail_id" type="cfemails" default="0" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_CREATOR" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_CREATOR_DESC" class="btn-group" />
-                <field name="user_mail_id" type="cfemails" default="0" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_USER" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SEND_MAIL_USER_DESC" class="btn-group" />
-                
-                <field name="email_mode" type="list" default="html" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_EMAIL_MODE" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_EMAIL_MODE_DESC" >
-                   <option value="plain">PLG_CROWDFUNDINGPAYMENT_COINBASE_PLAIN</option>
-                   <option value="html">PLG_CROWDFUNDINGPAYMENT_COINBASE_HTML</option>
-                </field>
-                
-			</fieldset>
-	            
+            </fieldset>
         </fields>
 	</config>
 </extension>
