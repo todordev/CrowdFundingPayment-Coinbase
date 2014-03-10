@@ -130,7 +130,8 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin {
         $coinbase = Coinbase::withApiKey($apiKey, $secretKey);
         
         // DEBUG DATA
-        JDEBUG ? $this->log->add(JText::_($this->textPrefix."_DEBUG_CREATE_BUTTON_OBJECT"), $this->debugType, $coinbase) : null;
+        $coinbase_ = @var_export($coinbase, true);
+        JDEBUG ? $this->log->add(JText::_($this->textPrefix."_DEBUG_CREATE_BUTTON_OBJECT"), $this->debugType, $coinbase_) : null;
         
         if(!empty($options)) {
             $response = $coinbase->createButton($title, $item->amount, $item->currencyCode, $custom, $options);
