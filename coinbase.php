@@ -46,7 +46,7 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin
         }
 
         $doc = JFactory::getDocument();
-        /**  @var $doc JDocumentHtml * */
+        /**  @var $doc JDocumentHtml */
 
         // Check document type
         $docType = $doc->getType();
@@ -168,7 +168,7 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin
      *
      * @return null|array
      */
-    public function onPaymenNotify($context, &$params)
+    public function onPaymentNotify($context, &$params)
     {
         if (strcmp("com_crowdfunding.notify.coinbase", $context) != 0) {
             return null;
@@ -233,6 +233,7 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin
             "project"         => null,
             "reward"          => null,
             "transaction"     => null,
+            "payment_session" => null,
             "payment_service" => "Coinbase"
         );
 
@@ -317,6 +318,10 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin
             $properties       = $reward->getProperties();
             $result["reward"] = JArrayHelper::toObject($properties);
         }
+
+        // Generate data object, based on the intention properties.
+        $properties       = $intention->getProperties();
+        $result["payment_session"] = JArrayHelper::toObject($properties);
 
         // DEBUG DATA
         JDEBUG ? $this->log->add(JText::_($this->textPrefix . "_DEBUG_RESULT_DATA"), $this->debugType, $result) : null;
