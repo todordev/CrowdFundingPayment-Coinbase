@@ -3,7 +3,7 @@
  * @package         CrowdFunding
  * @subpackage      Plugins
  * @author          Todor Iliev
- * @copyright       Copyright (C) 2014 Todor Iliev <todor@itprism.com>. All rights reserved.
+ * @copyright       Copyright (C) 2015 Todor Iliev <todor@itprism.com>. All rights reserved.
  * @license         http://www.gnu.org/copyleft/gpl.html GNU/GPL
  */
 
@@ -54,13 +54,12 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin
             return null;
         }
 
-        // Load language
-        $this->loadLanguage();
-
         // This is a URI path to the plugin folder
         $pluginURI = "plugins/crowdfundingpayment/coinbase";
 
         $html   = array();
+        $html[] = '<div class="well">';
+
         $html[] = '<h4><img src="' . $pluginURI . '/images/coinbase_icon.png" width="38" height="32" /> ' . JText::_($this->textPrefix . "_TITLE") . '</h4>';
         $html[] = '<p>' . JText::_($this->textPrefix . "_INFO") . '</p>';
 
@@ -152,10 +151,12 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin
         $html[] = $response->embedHtml;
 
         if ($this->params->get('coinbase_test_mode', 1)) {
-            $html[] = '<p class="sticky">' . JText::_($this->textPrefix . "_WORKS_TEST_MODE") . '</p>';
+            $html[] = '<p class="alert alert-info"><i class="icon-info-sign"></i>' . JText::_($this->textPrefix . "_WORKS_TEST_MODE") . '</p>';
             $html[] = '<label>' . JText::_($this->textPrefix . "_TEST_CUSTOM_STRING") . '</label>';
             $html[] = '<input type="test" name="test_custom_string" value="' . $custom . '" class="span12"/>';
         }
+
+        $html[] = '</div>';
 
         return implode("\n", $html);
     }
@@ -193,9 +194,6 @@ class plgCrowdFundingPaymentCoinbase extends CrowdFundingPaymentPlugin
         // Get data from PHP input
         $jsonData = file_get_contents('php://input');
         $post     = json_decode($jsonData, true);
-
-        // Load language
-        $this->loadLanguage();
 
         // DEBUG DATA
         JDEBUG ? $this->log->add(JText::_($this->textPrefix . "_DEBUG_RESPONSE"), $this->debugType, $_POST) : null;
