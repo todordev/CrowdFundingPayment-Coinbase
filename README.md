@@ -1,12 +1,15 @@
 Crowdfunding Payment - Coinbase
 ==========================
-( Version 2.0 )
+( Version 3.0 )
 - - -
 
-This is a Bitcoin payment plugin for Crowdfunding which provides a possibility for payment via Coinbase.
+This is payment plugin for the crowdfunding platform that enables payments via Coinbase using Bitcoins.
 
 Changelog
 ---------
+
+###v3.0
+* Replaced old Coinbase API with new one (v2).
 
 ###v1.10
 * Replaces the deprecated Coinbase API key with the new one ( API key + Secret ).
