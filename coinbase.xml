@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<extension version="3.5" type="plugin" group="crowdfundingpayment" method="upgrade">
+<extension version="3.6" type="plugin" group="crowdfundingpayment" method="upgrade">
     <name>PLG_CROWDFUNDINGPAYMENT_COINBASE</name>
     <author>Todor Iliev</author>
-    <copyright>Copyright (C) 2016 Todor Iliev ( ITPrism.com ). All rights reserved.</copyright>
+    <copyright>Copyright (C) 2017 Todor Iliev ( ITPrism.com ). All rights reserved.</copyright>
     <license>http://www.gnu.org/licenses/gpl-3.0.en.html GNU/GPLv3</license>
     <authorEmail>todor@itprism.com</authorEmail>
     <authorUrl>http://itprism.com</authorUrl>
-    <version>3.0</version>
-    <creationDate>29 April, 2016</creationDate>
+    <version>3.1-beta1</version>
+    <creationDate>22 April, 2017</creationDate>
     <description><![CDATA[
     <p>Crowdfunding Payment - Coinbase is a plugin that enables bitcoin payments via <a href='https://coinbase.com/?r=51b8bcf9b08a3247a7000008' target='_blank'>Coinbase</a>.</p>
     <p><a href='http://itprism.com/' target='_blank'>Subscribe for the newsletter</a> to receive information about updates and new ITPrism extensions.</p>
@@ -28,17 +28,6 @@
 			<fieldset name="basic">
 		        <field name="api_key" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_API_KEY_DESC" class="input-xxlarge" />
 		        <field name="secret_key" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SECRET_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SECRET_KEY_DESC" class="input-xxlarge" />
-		        <field name="live_url" type="text" default="https://www.coinbase.com/checkouts/" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_LIVE_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_LIVE_URL_DESC" class="input-xxlarge" />
-            </fieldset>
-            
-            <fieldset name="sandbox" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SANDBOX" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SANDBOX_PRAMS">
-                <field name="sandbox" type="radio" default="1" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_ENABLE_SANDBOX" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_ENABLE_SANDBOX_DESC" class="btn-group">
-                    <option value="0">JNO</option>
-                    <option value="1">JYES</option>
-                </field>
-                <field name="sandbox_api_key" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SANDBOX_API_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SANDBOX_API_KEY_DESC" class="input-xxlarge" />
-                <field name="sandbox_secret_key" type="text" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SANDBOX_SECRET_KEY" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SANDBOX_SECRET_KEY_DESC" class="input-xxlarge" />
-                <field name="sandbox_url" type="text" default="https://sandbox.coinbase.com/checkouts/" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_SANDBOX_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_SANDBOX_URL_DESC" class="input-xxlarge" />
             </fieldset>
             
             <fieldset name="emails" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFICATION_EMAILS" addfieldpath="/administrator/components/com_emailtemplates/models/fields">
@@ -53,9 +42,9 @@
 			</fieldset>
 	            
             <fieldset name="advanced" >
-                <field name="return_url" type="text" size="80" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_RETURN_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_RETURN_URL_DESC" class="span6" />
-                <field name="cancel_url" type="text" size="80" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_CANCEL_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_CANCEL_URL_DESC" class="span6" />
-                <field name="callback_url" type="text" default="index.php?option=com_crowdfunding&amp;task=notifier.notify&amp;format=raw&amp;payment_service=coinbase" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFICATION_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFICATION_URL_DESC" class="span6" />
+                <field name="return_url" type="text" size="80" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_RETURN_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_RETURN_URL_DESC" class="input-xxlarge" />
+                <field name="cancel_url" type="text" size="80" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_CANCEL_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_CANCEL_URL_DESC" class="input-xxlarge" />
+                <field name="callback_url" type="cfurl" default="index.php?option=com_crowdfunding&amp;task=notifier.notify&amp;format=raw&amp;payment_service=coinbase" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFICATION_URL" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_NOTIFICATION_URL_DESC" class="input-xxlarge" />
                 
                 <field name="auto_redirect" type="radio" default="1" label="PLG_CROWDFUNDINGPAYMENT_COINBASE_AUTO_REDIRECT" description="PLG_CROWDFUNDINGPAYMENT_COINBASE_AUTO_REDIRECT_DESC" class="btn-group">
                     <option value="0">JNO</option>
@@ -80,4 +69,8 @@
             </fieldset>
         </fields>
 	</config>
+
+    <updateservers>
+        <server type="extension" priority="1" name="CrowdfundingPayment - Coinbase">http://cdn.itprism.com/updates/crowdfunding/plugins/plg_crowdfundingpayment_coinbase.xml</server>
+    </updateservers>
 </extension>

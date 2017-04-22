@@ -3,11 +3,16 @@
  * @package         Crowdfunding
  * @subpackage      Plugins
  * @author          Todor Iliev
- * @copyright       Copyright (C) 2016 Todor Iliev <todor@itprism.com>. All rights reserved.
+ * @copyright       Copyright (C) 2017 Todor Iliev <todor@itprism.com>. All rights reserved.
  * @license         http://www.gnu.org/licenses/gpl-3.0.en.html GNU/GPL
  */
 
+use Crowdfunding\Transaction\Transaction;
+use Crowdfunding\Transaction\TransactionManager;
+use Crowdfunding\Observer\Transaction\TransactionObserver;
 use Joomla\Utilities\ArrayHelper;
+use Joomla\Registry\Registry;
+use Prism\Payment\Result as PaymentResult;
 
 // no direct access
 defined('_JEXEC') or die;
@@ -15,6 +20,9 @@ defined('_JEXEC') or die;
 jimport('Prism.init');
 jimport('Crowdfunding.init');
 jimport('Emailtemplates.init');
+jimport('Prism.libs.GuzzleHttp.init');
+
+JObserverMapper::addObserverClassToClass(TransactionObserver::class, TransactionManager::class, array('typeAlias' => 'com_crowdfunding.payment'));
 
 /**
  * Crowdfunding Coinbase payment plugin
@@ -26,12 +34,8 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
 {
     public function __construct(&$subject, $config = array())
     {
-        parent::__construct($subject, $config);
-
         $this->serviceProvider = 'Coinbase';
         $this->serviceAlias    = 'coinbase';
-        $this->textPrefix     .= '_' . strtoupper($this->serviceAlias);
-        $this->debugType      .= '_' . strtoupper($this->serviceAlias);
 
         $this->extraDataKeys = array(
             'id', 'code', 'type', 'amount', 'status', 'bitcoin_amount',
@@ -39,6 +43,8 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
             'bitcoin_uri', 'paid_at', 'mispaid_at', 'expires_at', 'metadata', 'created_at',
             'updated_at', 'transaction'
         );
+
+        parent::__construct($subject, $config);
     }
 
     /**
@@ -48,8 +54,12 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
      * @param stdClass $item
      *
      * @return null|string
+     *
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
      */
-    public function onProjectPayment($context, &$item)
+    public function onProjectPayment($context, $item)
     {
         if (strcmp('com_crowdfunding.payment', $context) !== 0) {
             return null;
@@ -76,7 +86,7 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
 
         $apiSettings = $this->getApiSettings();
 
-        if (!$apiSettings->api_key or !$apiSettings->api_secret or !$apiSettings->url) {
+        if (!$apiSettings['api_key'] or !$apiSettings['api_secret']) {
             $html[] = $this->generateSystemMessage(JText::_($this->textPrefix . '_ERROR_PLUGIN_NOT_CONFIGURED'));
             return implode("\n", $html);
         }
@@ -89,53 +99,13 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
             'session_id'    => $paymentSessionLocal->session_id
         ));
 
-        // Custom data
-        $custom = array(
-            'payment_session_id' => $paymentSession->getId(),
-            'gateway'            => $this->serviceAlias
-        );
+        $configuration = Coinbase\Wallet\Configuration::apiKey($apiSettings['api_key'], $apiSettings['api_secret']);
+        $client = Coinbase\Wallet\Client::create($configuration);
 
-//        $custom = base64_encode(json_encode($custom));
-        $title  = htmlentities($item->title, ENT_QUOTES, 'UTF-8');
-
-        // Button options
-        $options = array();
-
-        // Button type
-        $options['type'] = $this->params->get('checkout_type', 'donation');
-
-        if (!$this->params->get('button_text')) {
-            $buttonText = JText::_($this->textPrefix.'_'.JString::strtoupper($this->params->get('button_type')));
-        } else {
-            $buttonText = htmlspecialchars($this->params->get('button_text'), ENT_COMPAT, 'UTF-8');
-        }
-
-        // Return URL
-        $returnUrl = $this->getReturnUrl($item->slug, $item->catslug);
-        if ($returnUrl !== '') {
-            $options['success_url'] = $returnUrl;
-        }
-
-        // Cancel URL
-        $cancelUrl = $this->getCancelUrl($item->slug, $item->catslug);
-        if ($returnUrl !== '') {
-            $options['cancel_url'] = $cancelUrl;
-        }
-
-        // Set auto-redirect option.
-        $options['auto_redirect'] = (bool)$this->params->get('auto_redirect', 1);
+        $options = $this->prepareCheckoutOptions($item, $paymentSession->getId());
 
         // DEBUG DATA
         JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_CREATE_BUTTON_OPTIONS'), $this->debugType, $options) : null;
-
-        jimport('Prism.libs.init');
-        $configuration = Coinbase\Wallet\Configuration::apiKey($apiSettings->api_key, $apiSettings->api_secret);
-        $configuration->setApiUrl($apiSettings->api_url);
-        $client = Coinbase\Wallet\Client::create($configuration);
-
-        $options['name'] = $title;
-        $options['amount'] = new Coinbase\Wallet\Value\Money($item->amount, $item->currencyCode);
-        $options['metadata'] = $custom;
 
         $checkout = new Coinbase\Wallet\Resource\Checkout($options);
 
@@ -149,11 +119,17 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
             // DEBUG DATA
             JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_CREATE_CHECKOUT_OBJECT'), $this->debugType, $client) : null;
 
-            if ($this->params->get('payment_process') === 'button') {
+            if (strcmp('button', $this->params->get('payment_process', 'button')) === 0) {
+                if (!$this->params->get('button_text')) {
+                    $buttonText = JText::_($this->textPrefix.'_'.strtoupper($this->params->get('button_type')));
+                } else {
+                    $buttonText = htmlspecialchars($this->params->get('button_text'), ENT_COMPAT, 'UTF-8');
+                }
+
                 $html[] = '<p class="alert alert-info p-10-5"><span class="fa fa-info-circle"></span> ' . JText::_($this->textPrefix . '_INFO') . '</p>';
-                $html[] = '<a href="'.$apiSettings->url.$code.'" class="btn btn-primary"><span class="fa fa-btc"></span> '.$buttonText.'</a>';
+                $html[] = '<a href="https://www.coinbase.com/checkouts/'.$code.'" class="btn btn-primary"><span class="fa fa-btc"></span> '.$buttonText.'</a>';
             } else {
-                $html[] = '<iframe id="coinbase_inline_iframe_'.$code.'" src="'.$apiSettings->url.$code.'/inline" style="width: 460px; height: 350px; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.25);" allowtransparency="true" frameborder="0"></iframe>';
+                $html[] = '<iframe id="coinbase_inline_iframe_'.$code.'" src="https://www.coinbase.com/checkouts/'.$code.'/inline" style="width: 460px; height: 350px; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.25);" allowtransparency="true" frameborder="0"></iframe>';
             }
         } catch (Exception $e) {
             // DEBUG DATA
@@ -161,10 +137,6 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
 
             $this->log->add($e->getMessage(), $this->errorType);
             $this->notifyAdministrator($e->getMessage());
-        }
-
-        if ($this->params->get('sandbox', 1)) {
-            $html[] = '<div class="alert alert-warning mt-5 p-10-5"><span class="fa fa-exclamation-circle"></span> ' . JText::_($this->textPrefix . '_SANDBOX_MESSAGE') . '</div>';
         }
 
         $html[] = '</div>';
@@ -176,11 +148,16 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
      * This method processes transaction.
      *
      * @param string    $context This string gives information about that where it has been executed the trigger.
-     * @param Joomla\Registry\Registry $params  The parameters of the component
+     * @param Registry  $params  The parameters of the component
      *
-     * @return null|array
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     * @throws \UnexpectedValueException
+     * @throws \OutOfBoundsException
+     *
+     * @return null|PaymentResult
      */
-    public function onPaymentNotify($context, &$params)
+    public function onPaymentNotify($context, $params)
     {
         if (strcmp('com_crowdfunding.notify.coinbase', $context) !== 0) {
             return null;
@@ -200,210 +177,157 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
         }
 
         $apiSettings = $this->getApiSettings();
-
-        if (!$apiSettings->api_key or !$apiSettings->api_secret or !$apiSettings->url) {
+        if (!$apiSettings['api_key'] or !$apiSettings['api_secret']) {
             return null;
         }
 
         // Get data from PHP input
-        $rawBody = file_get_contents('php://input');
+        $rawBody   = file_get_contents('php://input');
         $signature = $this->app->input->server->get('HTTP_CB_SIGNATURE');
 
         // DEBUG DATA
         JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_RESPONSE'), $this->debugType, $rawBody) : null;
         JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_SIGNATURE'), $this->debugType, $signature) : null;
 
-        jimport('Prism.libs.init');
-        $configuration = Coinbase\Wallet\Configuration::apiKey($apiSettings->api_key, $apiSettings->api_secret);
-        $configuration->setApiUrl($apiSettings->api_url);
+        $configuration = Coinbase\Wallet\Configuration::apiKey($apiSettings['api_key'], $apiSettings['api_secret']);
         $client = Coinbase\Wallet\Client::create($configuration);
 
         $authenticity = $client->verifyCallback($rawBody, $signature); // boolean
-        $post         = json_decode($rawBody, true);
+        $response     = json_decode($rawBody, true);
 
         // DEBUG DATA
         JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_AUTHENTICITY'), $this->debugType, var_export($authenticity, true)) : null;
-        JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_RESPONSE'), $this->debugType, $post) : null;
+        JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_RESPONSE'), $this->debugType, $response) : null;
 
-        if (!$post or (!$this->params->get('sandbox', 1) and !$authenticity)) {
+        if (!$response or !$authenticity) {
             return null;
         }
 
-        $postData = ArrayHelper::getValue($post, 'data');
+        $postData = ArrayHelper::getValue($response, 'data');
         $metadata = ArrayHelper::getValue($postData, 'metadata');
 
         // Verify gateway. Is it Coinbase
         if (!$this->isValidPaymentGateway($metadata['gateway'])) {
-            $this->log->add(
-                JText::_($this->textPrefix . '_ERROR_INVALID_PAYMENT_GATEWAY'),
-                $this->debugType,
-                array('metadata' => $metadata, '_POST' => $post)
-            );
-
+            $this->log->add(JText::_($this->textPrefix . '_ERROR_INVALID_PAYMENT_GATEWAY'), $this->debugType, array('metadata' => $metadata, '_POST' => $postData));
             return null;
         }
 
-        $result = array(
-            'project'          => null,
-            'reward'           => null,
-            'transaction'      => null,
-            'payment_session'  => null,
-            'service_provider' => $this->serviceProvider,
-            'service_alias'    => $this->serviceAlias
-        );
+        // Prepare the array that have to be returned by this method.
+        $paymentResult = new PaymentResult();
 
-        // Get extension parameters
-        $currencyId = $params->get('project_currency');
-        $currency   = new Crowdfunding\Currency(JFactory::getDbo());
-        $currency->load($currencyId);
+        $containerHelper  = new Crowdfunding\Container\Helper();
+        $currency         = $containerHelper->fetchCurrency($this->container, $params);
 
         // Get payment session data
-        $paymentSessionId = ArrayHelper::getValue($metadata, 'payment_session_id', 0, 'int');
-        $paymentSession   = $this->getPaymentSession(array('id' => $paymentSessionId));
+        $paymentSessionId       = ArrayHelper::getValue($metadata, 'payment_session_id', 0, 'int');
+        $paymentSessionRemote   = $this->getPaymentSession(array('id' => $paymentSessionId));
 
-        // DEBUG DATA
-        JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_PAYMENT_SESSION'), $this->debugType, $paymentSession->getProperties()) : null;
+        // Check for valid payment session.
+        if (!$paymentSessionRemote->getId()) {
+            $this->log->add(JText::_($this->textPrefix . '_ERROR_PAYMENT_SESSION'), $this->errorType, $paymentSessionRemote->getProperties());
+            return null;
+        }
 
         // Validate transaction data
-        $validData = $this->validateData($postData, $currency->getCode(), $paymentSession);
+        $validData = $this->validateData($postData, $currency->getCode(), $paymentSessionRemote);
         if ($validData === null) {
-            return $result;
+            return null;
         }
 
         // DEBUG DATA
         JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_VALID_DATA'), $this->debugType, $validData) : null;
 
-        // Get project
-        $projectId = ArrayHelper::getValue($validData, 'project_id');
-        $project   = new Crowdfunding\Project(JFactory::getDbo());
-        $project->load($projectId);
-
-        // DEBUG DATA
-        JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_PROJECT_OBJECT'), $this->debugType, $project->getProperties()) : null;
-
-        // Check for valid project
-        if (!$project->getId()) {
-            // Log data in the database
-            $this->log->add(
-                JText::_($this->textPrefix . '_ERROR_INVALID_PROJECT'),
-                $this->debugType,
-                $validData
-            );
-
-            return $result;
-        }
-
-        // Set the receiver of funds.
+        // Set the receiver ID.
+        $project = $containerHelper->fetchProject($this->container, $validData['project_id']);
         $validData['receiver_id'] = $project->getUserId();
 
-        $transactionData   = null;
-        $reward            = null;
-
-        // Start database transaction.
-        $db = JFactory::getDbo();
-        $db->transactionStart();
-
-        try {
-            // Save transaction data.
-            // If it is not completed, return empty results.
-            // If it is complete, continue with process transaction data
-            $transactionData = $this->storeTransaction($validData, $project);
-            if ($transactionData === null) {
-                return $result;
-            }
-
-            // Update the number of distributed reward.
-            $rewardId = ArrayHelper::getValue($transactionData, 'reward_id', 0, 'int');
-            if ($rewardId > 0) {
-                $reward = $this->updateReward($transactionData);
-
-                // Validate the reward.
-                if (!$reward) {
-                    $transactionData['reward_id'] = 0;
-                }
-            }
-
-            $db->transactionCommit();
-
-        } catch (Exception $e) {
-            $db->transactionRollback();
-            return $result;
+        // Get reward object.
+        $reward = null;
+        if ($validData['reward_id']) {
+            $reward = $containerHelper->fetchReward($this->container, $validData['reward_id'], $project->getId());
         }
 
-        //  Prepare the data that will be returned
+        // Save transaction data.
+        // If it is not completed, return empty results.
+        // If it is complete, continue with process transaction data
+        $transaction = $this->storeTransaction($validData);
+        if ($transaction === null) {
+            return null;
+        }
 
-        $result['transaction'] = ArrayHelper::toObject($transactionData);
+        // Generate object of data, based on the transaction properties.
+        $paymentResult->transaction = $transaction;
 
-        // Generate object of data based on the project properties
-        $properties        = $project->getProperties();
-        $result['project'] = ArrayHelper::toObject($properties);
+        // Generate object of data based on the project properties.
+        $paymentResult->project = $project;
 
-        // Generate object of data based on the reward properties
+        // Generate object of data based on the reward properties.
         if ($reward !== null and ($reward instanceof Crowdfunding\Reward)) {
-            $properties       = $reward->getProperties();
-            $result['reward'] = ArrayHelper::toObject($properties);
+            $paymentResult->reward = $reward;
         }
 
         // Generate data object, based on the payment session properties.
-        $properties       = $paymentSession->getProperties();
-        $result['payment_session'] = ArrayHelper::toObject($properties);
+        $paymentResult->paymentSession = $paymentSessionRemote;
 
-        // DEBUG DATA
-        JDEBUG ? $this->log->add(JText::_($this->textPrefix . '_DEBUG_RESULT_DATA'), $this->debugType, $result) : null;
+        // Removing intention.
+        $this->removeIntention($paymentSessionRemote, $transaction);
 
-        // Remove payment session
-        // Remove payment session.
-        $txnStatus = (isset($result['transaction']->txn_status)) ? $result['transaction']->txn_status : null;
-        $removeIntention  = (strcmp('completed', $txnStatus) === 0);
-        
-        $this->closePaymentSession($paymentSession, $removeIntention);
-
-        return $result;
+        return $paymentResult;
     }
 
     /**
      * Validate transaction data.
      *
      * @param array                 $data
-     * @param string                $currency
-     * @param Crowdfunding\Payment\Session $paymentSessionId
+     * @param string                $currencyCode
+     * @param Crowdfunding\Payment\Session $paymentSessionRemote
+     *
+     * @throws \InvalidArgumentException
      *
      * @return null|array
      */
-    protected function validateData($data, $currency, $paymentSessionId)
+    protected function validateData($data, $currencyCode, $paymentSessionRemote)
     {
-        $created = ArrayHelper::getValue($data, 'created_at');
-        $date    = new JDate($created);
+        $createdAt = ArrayHelper::getValue($data, 'created_at');
+        $dateValidator = new Prism\Validator\Date($createdAt);
+
+        if ($dateValidator->isValid()) {
+            $date = new \JDate($createdAt);
+        } else {
+            $date = new \JDate();
+        }
 
         // Get transaction status
         $status = strtolower(ArrayHelper::getValue($data, 'status'));
         switch ($status) {
+            case 'completed':
             case 'paid':
                 $status = 'completed';
                 break;
-
             case 'mispaid':
                 $status = 'failed';
                 break;
-
             default:
                 $status = 'pending';
                 break;
         }
 
-        // If the transaction has been made by anonymous user, reset reward. Anonymous users cannot select rewards.
-        $rewardId = ($paymentSessionId->isAnonymous()) ? 0 : (int)$paymentSessionId->getRewardId();
+        if (array_key_exists('bitcoin_amount', $data)) {
+            $amount = ArrayHelper::getValue($data, 'bitcoin_amount', array(), 'array');
+        } else {
+            $amount = ArrayHelper::getValue($data, 'amount', array(), 'array');
+        }
 
         // Prepare transaction data
         $transaction = array(
-            'investor_id'      => (int)$paymentSessionId->getUserId(),
-            'project_id'       => (int)$paymentSessionId->getProjectId(),
-            'reward_id'        => (int)$rewardId,
+            'investor_id'      => (int)$paymentSessionRemote->getUserId(),
+            'project_id'       => (int)$paymentSessionRemote->getProjectId(),
+            'reward_id'        => (int)$paymentSessionRemote->getRewardId(),
             'service_provider' => $this->serviceProvider,
             'service_alias'    => $this->serviceAlias,
             'txn_id'           => ArrayHelper::getValue($data, 'code'),
-            'txn_amount'       => ArrayHelper::getValue($data['bitcoin_amount'], 'amount'),
-            'txn_currency'     => ArrayHelper::getValue($data['bitcoin_amount'], 'currency'),
+            'txn_amount'       => ArrayHelper::getValue($amount, 'amount'),
+            'txn_currency'     => ArrayHelper::getValue($amount, 'currency'),
             'txn_status'       => $status,
             'txn_date'         => $date->toSql(),
             'extra_data'       => $this->prepareExtraData($data)
@@ -411,25 +335,13 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
 
         // Check User Id, Project ID and Transaction ID
         if (!$transaction['project_id'] or !$transaction['txn_id']) {
-            // Log data in the database
-            $this->log->add(
-                JText::_($this->textPrefix . '_ERROR_INVALID_TRANSACTION_DATA'),
-                $this->debugType,
-                $transaction
-            );
-
+            $this->log->add(JText::_($this->textPrefix . '_ERROR_INVALID_TRANSACTION_DATA'), $this->debugType, $transaction);
             return null;
         }
 
         // Check currency
-        if (strcmp($transaction['txn_currency'], $currency) !== 0) {
-            // Log data in the database
-            $this->log->add(
-                JText::_($this->textPrefix . '_ERROR_INVALID_TRANSACTION_CURRENCY'),
-                $this->debugType,
-                array('TRANSACTION DATA' => $transaction, 'CURRENCY' => $currency)
-            );
-
+        if (strcmp($transaction['txn_currency'], $currencyCode) !== 0) {
+            $this->log->add(JText::_($this->textPrefix . '_ERROR_INVALID_TRANSACTION_CURRENCY'), $this->debugType, array('TRANSACTION DATA' => $transaction, 'CURRENCY' => $currencyCode));
             return null;
         }
 
@@ -439,18 +351,20 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
     /**
      * Save transaction
      *
-     * @param array               $transactionData The data about transaction from the payment gateway.
-     * @param Crowdfunding\Project $project
+     * @param array  $transactionData The data about transaction from the payment gateway.
      *
-     * @return null|array
+     * @throws \InvalidArgumentException
+     * @throws \RuntimeException
+     *
+     * @return null|Transaction
      */
-    public function storeTransaction($transactionData, $project)
+    public function storeTransaction($transactionData)
     {
         // Get transaction by txn ID
         $keys        = array(
             'txn_id' => ArrayHelper::getValue($transactionData, 'txn_id')
         );
-        $transaction = new Crowdfunding\Transaction(JFactory::getDbo());
+        $transaction = new Transaction(JFactory::getDbo());
         $transaction->load($keys);
 
         // DEBUG DATA
@@ -463,49 +377,103 @@ class plgCrowdfundingPaymentCoinbase extends Crowdfunding\Payment\Plugin
         }
 
         // Add extra data.
-        if (array_key_exists('extra_data', $transactionData) and !empty($transactionData['extra_data'])) {
-            $transaction->addExtraData($transactionData['extra_data']);
+        if (array_key_exists('extra_data', $transactionData)) {
+            if (!empty($transactionData['extra_data'])) {
+                $transaction->addExtraData($transactionData['extra_data']);
+            }
+
             unset($transactionData['extra_data']);
         }
 
-        // Store the transaction data
-        $transaction->bind($transactionData);
-        $transaction->store();
+        // IMPORTANT: It must be placed before ->bind();
+        $options = array(
+            'old_status' => $transaction->getStatus(),
+            'new_status' => $transactionData['txn_status']
+        );
 
-        // If it is not completed (it might be pending or other status),
-        // stop the process. Only completed transaction will continue
-        // and will process the project, rewards,...
-        if (!$transaction->isCompleted()) {
+        // Create the new transaction record if there is not record.
+        // If there is new record, store new data with new status.
+        // Example: It has been 'pending' and now is 'completed'.
+        // Example2: It has been 'pending' and now is 'failed'.
+        $transaction->bind($transactionData);
+
+        // Start database transaction.
+        $db = JFactory::getDbo();
+
+        try {
+            $db->transactionStart();
+
+            $transactionManager = new TransactionManager($db);
+            $transactionManager->setTransaction($transaction);
+            $transactionManager->process('com_crowdfunding.payment', $options);
+
+            $db->transactionCommit();
+        } catch (Exception $e) {
+            $db->transactionRollback();
+
+            $this->log->add(JText::_($this->textPrefix . '_ERROR_TRANSACTION_PROCESS'), $this->errorType, $e->getMessage());
             return null;
         }
 
-        // Set transaction ID.
-        $transactionData['id'] = $transaction->getId();
-
-        // Update project funded amount
-        $amount = ArrayHelper::getValue($transactionData, 'txn_amount');
-        $project->addFunds($amount);
-        $project->storeFunds();
-
-        return $transactionData;
+        return $transaction;
     }
 
+    /**
+     * Prepare API settings.
+     *
+     * @return array
+     */
     protected function getApiSettings()
     {
-        $settings = new stdClass;
+        $settings = array();
 
-        if ($this->params->get('sandbox', 1)) {
-            $settings->api_key    = $this->params->get('sandbox_api_key');
-            $settings->api_secret = $this->params->get('sandbox_secret_key');
-            $settings->url        = $this->params->get('sandbox_url');
-            $settings->api_url    = Coinbase\Wallet\Configuration::SANDBOX_API_URL;
-        } else {
-            $settings->api_key    = $this->params->get('api_key');
-            $settings->api_secret = $this->params->get('secret_key');
-            $settings->url        = $this->params->get('live_url');
-            $settings->api_url    = Coinbase\Wallet\Configuration::DEFAULT_API_URL;
-        }
+        $settings['api_key']    = $this->params->get('api_key');
+        $settings['api_secret'] = $this->params->get('secret_key');
 
         return $settings;
+    }
+
+    protected function prepareCheckoutOptions($item, $paymentSessionId)
+    {
+        // Button options
+        $options = array();
+
+        // Button type
+        $options['type'] = $this->params->get('checkout_type', 'donation');
+
+        // Return URL
+        $returnUrl = $this->getReturnUrl($item->slug, $item->catslug);
+        if ($returnUrl !== '') {
+            $options['success_url'] = $returnUrl;
+        }
+
+        // Cancel URL
+        $cancelUrl = $this->getCancelUrl($item->slug, $item->catslug);
+        if ($returnUrl !== '') {
+            $options['cancel_url'] = $cancelUrl;
+        }
+
+        // Notification URL
+        $callbackUrl = $this->getCallbackUrl();
+        if ($callbackUrl !== '') {
+            $options['notifications_url'] = $callbackUrl;
+        }
+
+        // Set auto-redirect option.
+        $options['auto_redirect'] = (bool)$this->params->get('auto_redirect', Prism\Constants::YES);
+
+        // Custom data
+        $custom = array(
+            'payment_session_id' => $paymentSessionId,
+            'gateway'            => $this->serviceAlias
+        );
+
+        $title  = htmlentities($item->title, ENT_QUOTES, 'UTF-8');
+
+        $options['name']     = $title;
+        $options['amount']   = new Coinbase\Wallet\Value\Money($item->amount, $item->currencyCode);
+        $options['metadata'] = $custom;
+
+        return $options;
     }
 }
